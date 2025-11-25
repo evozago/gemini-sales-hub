@@ -41,7 +41,7 @@ export default function Clientes() {
   const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null);
   const [editingCliente, setEditingCliente] = useState<EditingCliente | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(20);
+  const [itemsPerPage, setItemsPerPage] = useState(100);
   const [sortField, setSortField] = useState<keyof Cliente>("nome");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [filterUF, setFilterUF] = useState<string>("all");
@@ -66,7 +66,7 @@ export default function Clientes() {
   const fetchClientes = async () => {
     setLoading(true);
     try {
-      // Buscar clientes
+      // Buscar todos os clientes (sem limit para pegar os 13.745)
       const { data: clientesData, error: clientesError } = await supabase
         .from("gemini_clientes")
         .select("*")
@@ -346,11 +346,29 @@ export default function Clientes() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 mt-4 text-sm text-muted-foreground">
-            <Filter className="h-4 w-4" />
-            <span>
-              Mostrando {currentItems.length} de {filteredClientes.length} clientes
-            </span>
+          <div className="flex items-center justify-between mt-4">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Filter className="h-4 w-4" />
+              <span>
+                Mostrando {indexOfFirstItem + 1} - {Math.min(indexOfLastItem, filteredClientes.length)} de {filteredClientes.length} clientes
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Itens por página:</span>
+              <Select value={itemsPerPage.toString()} onValueChange={(value) => {
+                setItemsPerPage(Number(value));
+                setCurrentPage(1);
+              }}>
+                <SelectTrigger className="w-[100px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="100">100</SelectItem>
+                  <SelectItem value="200">200</SelectItem>
+                  <SelectItem value="500">500</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -647,17 +665,60 @@ export default function Clientes() {
                       className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
                     />
                   </PaginationItem>
-                  {[...Array(totalPages)].map((_, index) => (
-                    <PaginationItem key={index}>
-                      <PaginationLink
-                        onClick={() => setCurrentPage(index + 1)}
-                        isActive={currentPage === index + 1}
-                        className="cursor-pointer"
-                      >
-                        {index + 1}
-                      </PaginationLink>
-                    </PaginationItem>
-                  ))}
+                  
+                  {/* Mostrar apenas algumas páginas para não sobrecarregar */}
+                  {currentPage > 3 && (
+                    <>
+                      <PaginationItem>
+                        <PaginationLink onClick={() => setCurrentPage(1)} className="cursor-pointer">
+                          1
+                        </PaginationLink>
+                      </PaginationItem>
+                      {currentPage > 4 && (
+                        <PaginationItem>
+                          <span className="px-4">...</span>
+                        </PaginationItem>
+                      )}
+                    </>
+                  )}
+                  
+                  {[...Array(Math.min(5, totalPages))].map((_, index) => {
+                    const pageNumber = currentPage <= 3 
+                      ? index + 1 
+                      : currentPage >= totalPages - 2
+                      ? totalPages - 4 + index
+                      : currentPage - 2 + index;
+                    
+                    if (pageNumber < 1 || pageNumber > totalPages) return null;
+                    
+                    return (
+                      <PaginationItem key={pageNumber}>
+                        <PaginationLink
+                          onClick={() => setCurrentPage(pageNumber)}
+                          isActive={currentPage === pageNumber}
+                          className="cursor-pointer"
+                        >
+                          {pageNumber}
+                        </PaginationLink>
+                      </PaginationItem>
+                    );
+                  })}
+                  
+                  {currentPage < totalPages - 2 && (
+                    <>
+                      {currentPage < totalPages - 3 && (
+                        <PaginationItem>
+                          <span className="px-4">...</span>
+                        </PaginationItem>
+                      )}
+                      <PaginationItem>
+                        <PaginationLink onClick={() => setCurrentPage(totalPages)} className="cursor-pointer">
+                          {totalPages}
+                        </PaginationLink>
+                      </PaginationItem>
+                    </>
+                  )}
+                  
                   <PaginationItem>
                     <PaginationNext
                       onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
