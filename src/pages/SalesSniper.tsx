@@ -209,12 +209,12 @@ export default function SalesSniper() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">Brand</label>
-                <Select value={filters.marca} onValueChange={(value) => setFilters({ ...filters, marca: value })}>
+                <Select value={filters.marca || "all"} onValueChange={(value) => setFilters({ ...filters, marca: value === "all" ? "" : value })}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select brand" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Brands</SelectItem>
+                    <SelectItem value="all">All Brands</SelectItem>
                     {brands?.map((brand) => (
                       <SelectItem key={brand} value={brand}>
                         {brand}
@@ -226,12 +226,12 @@ export default function SalesSniper() {
 
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">Size</label>
-                <Select value={filters.tamanho} onValueChange={(value) => setFilters({ ...filters, tamanho: value })}>
+                <Select value={filters.tamanho || "all"} onValueChange={(value) => setFilters({ ...filters, tamanho: value === "all" ? "" : value })}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select size" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Sizes</SelectItem>
+                    <SelectItem value="all">All Sizes</SelectItem>
                     {sizes?.map((size) => (
                       <SelectItem key={size} value={size}>
                         {size}
@@ -243,12 +243,12 @@ export default function SalesSniper() {
 
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">Gender</label>
-                <Select value={filters.genero} onValueChange={(value) => setFilters({ ...filters, genero: value })}>
+                <Select value={filters.genero || "all"} onValueChange={(value) => setFilters({ ...filters, genero: value === "all" ? "" : value })}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select gender" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All</SelectItem>
+                    <SelectItem value="all">All</SelectItem>
                     <SelectItem value="Feminino">Feminino</SelectItem>
                     <SelectItem value="Masculino">Masculino</SelectItem>
                     <SelectItem value="Unissex">Unissex</SelectItem>
@@ -259,14 +259,14 @@ export default function SalesSniper() {
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">Category</label>
                 <Select
-                  value={filters.categoria}
-                  onValueChange={(value) => setFilters({ ...filters, categoria: value })}
+                  value={filters.categoria || "all"}
+                  onValueChange={(value) => setFilters({ ...filters, categoria: value === "all" ? "" : value })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Categories</SelectItem>
+                    <SelectItem value="all">All Categories</SelectItem>
                     {categories?.map((cat) => (
                       <SelectItem key={cat} value={cat}>
                         {cat}
