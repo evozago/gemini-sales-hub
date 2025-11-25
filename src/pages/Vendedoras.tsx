@@ -52,30 +52,60 @@ export default function Vendedoras() {
   const fetchRankingData = async () => {
     setLoading(true);
     try {
-      // Buscar ranking da view otimizada
-      const { data: rankingData, error: rankingError } = await supabase
-        .from('gemini_vw_ranking_clientes')
-        .select('*')
-        .not('cliente_nome', 'in', '("Cliente Import","Consumidor final")')
-        .order('total_gasto_real', { ascending: false })
-        .limit(100);
+      // Buscar TODOS os dados de ranking em lotes (Supabase limita em 1000)
+      let allRankingData: any[] = [];
+      let from = 0;
+      const pageSize = 1000;
+      let hasMore = true;
 
-      if (rankingError) throw rankingError;
+      while (hasMore) {
+        const { data: rankingBatch, error: rankingError } = await supabase
+          .from('gemini_vw_ranking_clientes')
+          .select('*')
+          .not('cliente_nome', 'in', '("Cliente Import","Consumidor final")')
+          .order('total_gasto_real', { ascending: false })
+          .range(from, from + pageSize - 1);
 
-      // Buscar vendedores por cliente para determinar vendedor dono e última venda
-      const { data: vendasData, error: vendasError } = await supabase
-        .from('gemini_vendas_geral')
-        .select('nome, vendedor, total_venda, data')
-        .not('nome', 'in', '("Cliente Import","Consumidor final")')
-        .not('nome', 'is', null)
-        .order('data', { ascending: false });
+        if (rankingError) throw rankingError;
 
-      if (vendasError) throw vendasError;
+        if (rankingBatch && rankingBatch.length > 0) {
+          allRankingData = [...allRankingData, ...rankingBatch];
+          from += pageSize;
+          hasMore = rankingBatch.length === pageSize;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      // Buscar TODAS as vendas em lotes
+      let allVendasData: any[] = [];
+      from = 0;
+      hasMore = true;
+
+      while (hasMore) {
+        const { data: vendasBatch, error: vendasError } = await supabase
+          .from('gemini_vendas_geral')
+          .select('nome, vendedor, total_venda, data')
+          .not('nome', 'in', '("Cliente Import","Consumidor final")')
+          .not('nome', 'is', null)
+          .order('data', { ascending: false })
+          .range(from, from + pageSize - 1);
+
+        if (vendasError) throw vendasError;
+
+        if (vendasBatch && vendasBatch.length > 0) {
+          allVendasData = [...allVendasData, ...vendasBatch];
+          from += pageSize;
+          hasMore = vendasBatch.length === pageSize;
+        } else {
+          hasMore = false;
+        }
+      }
 
       // Mapear última vendedora por cliente (quem atendeu por último)
       const ultimaVendedoraPorCliente = new Map<string, string>();
 
-      (vendasData || []).forEach((venda: any) => {
+      allVendasData.forEach((venda: any) => {
         const clienteKey = venda.nome;
         // Como vendasData está ordenado por data desc, a primeira ocorrência é a mais recente
         if (!ultimaVendedoraPorCliente.has(clienteKey)) {
@@ -84,7 +114,7 @@ export default function Vendedoras() {
       });
 
       // Combinar dados do ranking com última vendedora
-      const clientesArray: ClienteRanking[] = (rankingData || []).map((cliente: any) => {
+      const clientesArray: ClienteRanking[] = allRankingData.map((cliente: any) => {
         const vendedorDono = ultimaVendedoraPorCliente.get(cliente.cliente_nome) || 'Sem vendedor';
         
         return {
@@ -107,6 +137,8 @@ export default function Vendedoras() {
       const ticketMedio = totalClientes > 0 ? totalVendas / totalClientes : 0;
 
       setKpis({ totalVendas, totalClientes, ticketMedio, totalAtendimentos });
+      
+      console.log(`✅ Carregados ${clientesArray.length} clientes VIP no ranking`);
     } catch (error) {
       console.error("Erro ao buscar dados do ranking:", error);
     } finally {
