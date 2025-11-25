@@ -12,6 +12,7 @@ import { Pagination, PaginationContent, PaginationItem, PaginationLink, Paginati
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, Edit, Phone, Mail, MapPin, Calendar, TrendingUp, ArrowUpDown, Filter } from "lucide-react";
 import { toast } from "sonner";
+import { ClientHistoryDialog } from "@/components/ClientHistoryDialog";
 
 interface Cliente {
   id: number;
@@ -48,6 +49,8 @@ export default function Clientes() {
   const [filterUF, setFilterUF] = useState<string>("all");
   const [filterCidade, setFilterCidade] = useState<string>("all");
   const [filterVendedora, setFilterVendedora] = useState<string>("all");
+  const [selectedClient, setSelectedClient] = useState<string>("");
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   // Estados para estatísticas
   const [stats, setStats] = useState({
@@ -296,6 +299,11 @@ export default function Clientes() {
     window.open(`https://wa.me/55${cleanPhone}?text=${message}`, "_blank");
   };
 
+  const openClientHistory = (clientName: string) => {
+    setSelectedClient(clientName);
+    setHistoryOpen(true);
+  };
+
   // Get unique UFs, Cidades and Vendedoras for filters
   const uniqueUFs = Array.from(new Set(clientes.map((c) => c.uf).filter(Boolean))).sort();
   const uniqueCidades = Array.from(
@@ -520,7 +528,12 @@ export default function Clientes() {
                   <TableRow key={cliente.id}>
                     <TableCell>
                       <div>
-                        <div className="font-medium text-foreground">{cliente.nome}</div>
+                        <div 
+                          className="font-medium text-foreground cursor-pointer hover:text-primary underline"
+                          onClick={() => openClientHistory(cliente.nome)}
+                        >
+                          {cliente.nome}
+                        </div>
                         {cliente.cpf && (
                           <div className="text-sm text-muted-foreground">CPF: {cliente.cpf}</div>
                         )}
@@ -837,6 +850,13 @@ export default function Clientes() {
           )}
         </CardContent>
       </Card>
+
+      {/* Client History Dialog */}
+      <ClientHistoryDialog 
+        open={historyOpen}
+        onOpenChange={setHistoryOpen}
+        clientName={selectedClient}
+      />
     </div>
   );
 }

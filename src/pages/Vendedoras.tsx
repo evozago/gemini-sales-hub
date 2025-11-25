@@ -5,8 +5,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, MessageCircle, TrendingUp, Users, ShoppingBag, Award } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Search, MessageCircle, TrendingUp, Users, ShoppingBag, Award, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ClientHistoryDialog } from "@/components/ClientHistoryDialog";
 
 interface ClienteRanking {
   cliente: string;
@@ -30,6 +32,11 @@ export default function Vendedoras() {
   const [clientesFiltrados, setClientesFiltrados] = useState<ClienteRanking[]>([]);
   const [kpis, setKpis] = useState<KPIs>({ totalVendas: 0, totalClientes: 0, ticketMedio: 0, totalAtendimentos: 0 });
   const [searchTerm, setSearchTerm] = useState("");
+  const [filterVendedora, setFilterVendedora] = useState<string>("all");
+  const [sortColumn, setSortColumn] = useState<string>("");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const [selectedClient, setSelectedClient] = useState<string>("");
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -37,17 +44,41 @@ export default function Vendedoras() {
   }, []);
 
   useEffect(() => {
-    if (searchTerm.trim() === "") {
-      setClientesFiltrados(clientes);
-    } else {
-      const filtered = clientes.filter(
+    let filtered = [...clientes];
+
+    // Filtrar por busca
+    if (searchTerm.trim() !== "") {
+      filtered = filtered.filter(
         (c) =>
           c.cliente.toLowerCase().includes(searchTerm.toLowerCase()) ||
           c.vendedor_dono.toLowerCase().includes(searchTerm.toLowerCase())
       );
-      setClientesFiltrados(filtered);
     }
-  }, [searchTerm, clientes]);
+
+    // Filtrar por vendedora
+    if (filterVendedora !== "all") {
+      filtered = filtered.filter((c) => c.vendedor_dono === filterVendedora);
+    }
+
+    // Ordenar
+    if (sortColumn) {
+      filtered.sort((a, b) => {
+        let aVal: any = a[sortColumn as keyof ClienteRanking];
+        let bVal: any = b[sortColumn as keyof ClienteRanking];
+
+        if (sortColumn === "ultima_compra") {
+          aVal = new Date(aVal).getTime();
+          bVal = new Date(bVal).getTime();
+        }
+
+        if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
+        if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
+        return 0;
+      });
+    }
+
+    setClientesFiltrados(filtered);
+  }, [searchTerm, filterVendedora, sortColumn, sortDirection, clientes]);
 
   const fetchRankingData = async () => {
     setLoading(true);
@@ -167,6 +198,31 @@ export default function Vendedoras() {
     window.open(`https://wa.me/55${cleanPhone}?text=${message}`, '_blank');
   };
 
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortColumn(column);
+      setSortDirection("desc");
+    }
+  };
+
+  const SortIcon = ({ column }: { column: string }) => {
+    if (sortColumn !== column) return <ArrowUpDown className="h-4 w-4 ml-2 inline" />;
+    return sortDirection === "asc" ? (
+      <ArrowUp className="h-4 w-4 ml-2 inline" />
+    ) : (
+      <ArrowDown className="h-4 w-4 ml-2 inline" />
+    );
+  };
+
+  const uniqueVendedoras = Array.from(new Set(clientes.map(c => c.vendedor_dono))).sort();
+
+  const openClientHistory = (clientName: string) => {
+    setSelectedClient(clientName);
+    setHistoryOpen(true);
+  };
+
   if (loading) {
     return (
       <div className="container mx-auto p-6 space-y-6">
@@ -245,15 +301,30 @@ export default function Vendedoras() {
         </Card>
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-        <Input
-          placeholder="Buscar por cliente ou vendedor..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10"
-        />
+      {/* Search and Filters */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+          <Input
+            placeholder="Buscar por cliente ou vendedor..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <Select value={filterVendedora} onValueChange={setFilterVendedora}>
+          <SelectTrigger>
+            <SelectValue placeholder="Filtrar por vendedora" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas as vendedoras</SelectItem>
+            {uniqueVendedoras.map((vendedora) => (
+              <SelectItem key={vendedora} value={vendedora}>
+                {vendedora}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Ranking Table */}
@@ -270,11 +341,36 @@ export default function Vendedoras() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[100px]">Ranking</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Vendedor Responsável</TableHead>
-                  <TableHead className="text-right">Valor Total</TableHead>
-                  <TableHead className="text-center">Compras</TableHead>
-                  <TableHead className="text-center">Última Compra</TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleSort("cliente")}
+                  >
+                    Cliente <SortIcon column="cliente" />
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleSort("vendedor_dono")}
+                  >
+                    Vendedor Responsável <SortIcon column="vendedor_dono" />
+                  </TableHead>
+                  <TableHead 
+                    className="text-right cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleSort("total_gasto")}
+                  >
+                    Valor Total <SortIcon column="total_gasto" />
+                  </TableHead>
+                  <TableHead 
+                    className="text-center cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleSort("total_compras")}
+                  >
+                    Compras <SortIcon column="total_compras" />
+                  </TableHead>
+                  <TableHead 
+                    className="text-center cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleSort("ultima_compra")}
+                  >
+                    Última Compra <SortIcon column="ultima_compra" />
+                  </TableHead>
                   <TableHead className="text-center">Ação</TableHead>
                 </TableRow>
               </TableHeader>
@@ -291,7 +387,12 @@ export default function Vendedoras() {
                       <TableCell>{getRankingBadge(index)}</TableCell>
                       <TableCell>
                         <div>
-                          <div className="font-medium">{cliente.cliente}</div>
+                          <div 
+                            className="font-medium cursor-pointer hover:text-primary"
+                            onClick={() => openClientHistory(cliente.cliente)}
+                          >
+                            {cliente.cliente}
+                          </div>
                           {cliente.telefone && (
                             <div className="text-xs text-muted-foreground">{cliente.telefone}</div>
                           )}
@@ -330,6 +431,13 @@ export default function Vendedoras() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Client History Dialog */}
+      <ClientHistoryDialog 
+        open={historyOpen}
+        onOpenChange={setHistoryOpen}
+        clientName={selectedClient}
+      />
     </div>
   );
 }
