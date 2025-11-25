@@ -15,8 +15,6 @@ interface ClienteRanking {
   total_compras: number;
   total_gasto: number;
   ultima_compra: string;
-  ultimo_vendedor: string;
-  alerta_traicao: boolean;
   perfil_produtos?: string;
 }
 
@@ -74,42 +72,20 @@ export default function Vendedoras() {
 
       if (vendasError) throw vendasError;
 
-      // Mapear vendedores por cliente
-      const vendedoresPorCliente = new Map<string, {
-        vendedorDono: string;
-        ultimoVendedor: string;
-        maiorTotal: number;
-        vendedorMap: Map<string, number>;
-      }>();
+      // Mapear última vendedora por cliente (quem atendeu por último)
+      const ultimaVendedoraPorCliente = new Map<string, string>();
 
       (vendasData || []).forEach((venda: any) => {
         const clienteKey = venda.nome;
-        
-        if (!vendedoresPorCliente.has(clienteKey)) {
-          vendedoresPorCliente.set(clienteKey, {
-            vendedorDono: venda.vendedor,
-            ultimoVendedor: venda.vendedor,
-            maiorTotal: 0,
-            vendedorMap: new Map()
-          });
-        }
-        
-        const info = vendedoresPorCliente.get(clienteKey)!;
-        const currentTotal = info.vendedorMap.get(venda.vendedor) || 0;
-        const newTotal = currentTotal + (venda.total_venda || 0);
-        info.vendedorMap.set(venda.vendedor, newTotal);
-        
-        if (newTotal > info.maiorTotal) {
-          info.maiorTotal = newTotal;
-          info.vendedorDono = venda.vendedor;
+        // Como vendasData está ordenado por data desc, a primeira ocorrência é a mais recente
+        if (!ultimaVendedoraPorCliente.has(clienteKey)) {
+          ultimaVendedoraPorCliente.set(clienteKey, venda.vendedor || 'Sem vendedor');
         }
       });
 
-      // Combinar dados do ranking com informações de vendedores
+      // Combinar dados do ranking com última vendedora
       const clientesArray: ClienteRanking[] = (rankingData || []).map((cliente: any) => {
-        const vendedorInfo = vendedoresPorCliente.get(cliente.cliente_nome);
-        const vendedorDono = vendedorInfo?.vendedorDono || 'Sem vendedor';
-        const ultimoVendedor = vendedorInfo?.ultimoVendedor || vendedorDono;
+        const vendedorDono = ultimaVendedoraPorCliente.get(cliente.cliente_nome) || 'Sem vendedor';
         
         return {
           cliente: cliente.cliente_nome,
@@ -117,9 +93,7 @@ export default function Vendedoras() {
           vendedor_dono: vendedorDono,
           total_compras: cliente.frequencia_compras || 0,
           total_gasto: cliente.total_gasto_real || 0,
-          ultima_compra: cliente.ultima_compra || '',
-          ultimo_vendedor: ultimoVendedor,
-          alerta_traicao: ultimoVendedor !== vendedorDono
+          ultima_compra: cliente.ultima_compra || ''
         };
       });
 
@@ -265,18 +239,17 @@ export default function Vendedoras() {
                 <TableRow>
                   <TableHead className="w-[100px]">Ranking</TableHead>
                   <TableHead>Cliente</TableHead>
-                  <TableHead>Vendedor</TableHead>
+                  <TableHead>Vendedor Responsável</TableHead>
                   <TableHead className="text-right">Valor Total</TableHead>
                   <TableHead className="text-center">Compras</TableHead>
                   <TableHead className="text-center">Última Compra</TableHead>
-                  <TableHead className="text-center">Status</TableHead>
                   <TableHead className="text-center">Ação</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {clientesFiltrados.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       Nenhum cliente encontrado
                     </TableCell>
                   </TableRow>
@@ -303,17 +276,6 @@ export default function Vendedoras() {
                       </TableCell>
                       <TableCell className="text-center text-sm">
                         {formatDate(cliente.ultima_compra)}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {cliente.alerta_traicao ? (
-                          <Badge variant="destructive" className="text-xs">
-                            ⚠️ Atendido por {cliente.ultimo_vendedor}
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-xs text-green-600 border-green-600">
-                            ✓ Fidelizado
-                          </Badge>
-                        )}
                       </TableCell>
                       <TableCell className="text-center">
                         {cliente.telefone && (
