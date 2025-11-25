@@ -54,99 +54,82 @@ export default function Vendedoras() {
   const fetchRankingData = async () => {
     setLoading(true);
     try {
-      // Buscar todas as vendas
-      const { data, error } = await supabase
+      // Buscar ranking da view otimizada
+      const { data: rankingData, error: rankingError } = await supabase
+        .from('gemini_vw_ranking_clientes')
+        .select('*')
+        .not('cliente_nome', 'in', '("Cliente Import","Consumidor final")')
+        .order('total_gasto_real', { ascending: false })
+        .limit(100);
+
+      if (rankingError) throw rankingError;
+
+      // Buscar vendedores por cliente para determinar vendedor dono e última venda
+      const { data: vendasData, error: vendasError } = await supabase
         .from('gemini_vendas_geral')
-        .select('nome, telefone, vendedor, total_venda, data')
+        .select('nome, vendedor, total_venda, data')
         .not('nome', 'in', '("Cliente Import","Consumidor final")')
-        .not('nome', 'is', null);
+        .not('nome', 'is', null)
+        .order('data', { ascending: false });
 
-      if (error) throw error;
+      if (vendasError) throw vendasError;
 
-      // Processar dados para calcular ranking
-      const vendedoresPorCliente = new Map<string, Map<string, number>>();
-      const clientesMap = new Map<string, {
-        cliente: string;
-        telefone: string;
-        total_compras: number;
-        total_gasto: number;
-        ultima_compra: string;
-        ultimo_vendedor: string;
+      // Mapear vendedores por cliente
+      const vendedoresPorCliente = new Map<string, {
+        vendedorDono: string;
+        ultimoVendedor: string;
+        maiorTotal: number;
+        vendedorMap: Map<string, number>;
       }>();
 
-      (data || []).forEach((venda: any) => {
+      (vendasData || []).forEach((venda: any) => {
         const clienteKey = venda.nome;
         
-        // Acumular vendas por vendedor para cada cliente
         if (!vendedoresPorCliente.has(clienteKey)) {
-          vendedoresPorCliente.set(clienteKey, new Map());
-        }
-        const vendedorMap = vendedoresPorCliente.get(clienteKey)!;
-        const currentTotal = vendedorMap.get(venda.vendedor) || 0;
-        vendedorMap.set(venda.vendedor, currentTotal + (venda.total_venda || 0));
-
-        // Acumular dados gerais do cliente
-        if (!clientesMap.has(clienteKey)) {
-          clientesMap.set(clienteKey, {
-            cliente: venda.nome,
-            telefone: venda.telefone || '',
-            total_compras: 0,
-            total_gasto: 0,
-            ultima_compra: venda.data,
-            ultimo_vendedor: venda.vendedor
+          vendedoresPorCliente.set(clienteKey, {
+            vendedorDono: venda.vendedor,
+            ultimoVendedor: venda.vendedor,
+            maiorTotal: 0,
+            vendedorMap: new Map()
           });
         }
         
-        const cliente = clientesMap.get(clienteKey)!;
-        cliente.total_compras += 1;
-        cliente.total_gasto += venda.total_venda || 0;
+        const info = vendedoresPorCliente.get(clienteKey)!;
+        const currentTotal = info.vendedorMap.get(venda.vendedor) || 0;
+        const newTotal = currentTotal + (venda.total_venda || 0);
+        info.vendedorMap.set(venda.vendedor, newTotal);
         
-        if (venda.data > cliente.ultima_compra) {
-          cliente.ultima_compra = venda.data;
-          cliente.ultimo_vendedor = venda.vendedor;
+        if (newTotal > info.maiorTotal) {
+          info.maiorTotal = newTotal;
+          info.vendedorDono = venda.vendedor;
         }
       });
 
-      // Determinar vendedor principal de cada cliente
-      const clientesArray: ClienteRanking[] = [];
-      clientesMap.forEach((cliente, clienteKey) => {
-        const vendedorMap = vendedoresPorCliente.get(clienteKey);
-        let vendedorDono = cliente.ultimo_vendedor;
-        let maiorTotal = 0;
-
-        if (vendedorMap) {
-          vendedorMap.forEach((total, vendedor) => {
-            if (total > maiorTotal) {
-              maiorTotal = total;
-              vendedorDono = vendedor;
-            }
-          });
-        }
-
-        clientesArray.push({
-          cliente: cliente.cliente,
-          telefone: cliente.telefone,
+      // Combinar dados do ranking com informações de vendedores
+      const clientesArray: ClienteRanking[] = (rankingData || []).map((cliente: any) => {
+        const vendedorInfo = vendedoresPorCliente.get(cliente.cliente_nome);
+        const vendedorDono = vendedorInfo?.vendedorDono || 'Sem vendedor';
+        const ultimoVendedor = vendedorInfo?.ultimoVendedor || vendedorDono;
+        
+        return {
+          cliente: cliente.cliente_nome,
+          telefone: cliente.telefone || '',
           vendedor_dono: vendedorDono,
-          total_compras: cliente.total_compras,
-          total_gasto: cliente.total_gasto,
-          ultima_compra: cliente.ultima_compra,
-          ultimo_vendedor: cliente.ultimo_vendedor,
-          alerta_traicao: cliente.ultimo_vendedor !== vendedorDono
-        });
+          total_compras: cliente.frequencia_compras || 0,
+          total_gasto: cliente.total_gasto_real || 0,
+          ultima_compra: cliente.ultima_compra || '',
+          ultimo_vendedor: ultimoVendedor,
+          alerta_traicao: ultimoVendedor !== vendedorDono
+        };
       });
 
-      // Ordenar por valor total e limitar
-      const clientesOrdenados = clientesArray
-        .sort((a, b) => b.total_gasto - a.total_gasto)
-        .slice(0, 100);
-
-      setClientes(clientesOrdenados);
-      setClientesFiltrados(clientesOrdenados);
+      setClientes(clientesArray);
+      setClientesFiltrados(clientesArray);
 
       // Calcular KPIs
-      const totalVendas = clientesOrdenados.reduce((sum, c) => sum + c.total_gasto, 0);
-      const totalClientes = clientesOrdenados.length;
-      const totalAtendimentos = clientesOrdenados.reduce((sum, c) => sum + c.total_compras, 0);
+      const totalVendas = clientesArray.reduce((sum, c) => sum + c.total_gasto, 0);
+      const totalClientes = clientesArray.length;
+      const totalAtendimentos = clientesArray.reduce((sum, c) => sum + c.total_compras, 0);
       const ticketMedio = totalClientes > 0 ? totalVendas / totalClientes : 0;
 
       setKpis({ totalVendas, totalClientes, ticketMedio, totalAtendimentos });
