@@ -68,34 +68,80 @@ export default function Clientes() {
   const fetchClientes = async () => {
     setLoading(true);
     try {
-      // Buscar todos os clientes (sem limit para pegar os 13.745)
-      const { data: clientesData, error: clientesError } = await supabase
-        .from("gemini_clientes")
-        .select("*")
-        .order("nome", { ascending: true });
+      // Buscar TODOS os clientes em lotes (Supabase limita em 1000 por query)
+      let allClientesData: any[] = [];
+      let from = 0;
+      const pageSize = 1000;
+      let hasMore = true;
 
-      if (clientesError) throw clientesError;
+      while (hasMore) {
+        const { data: clientesBatch, error: clientesError } = await supabase
+          .from("gemini_clientes")
+          .select("*")
+          .order("nome", { ascending: true })
+          .range(from, from + pageSize - 1);
 
-      // Buscar dados de vendas
-      const { data: rankingData, error: rankingError } = await supabase
-        .from("gemini_vw_ranking_clientes")
-        .select("*");
+        if (clientesError) throw clientesError;
 
-      if (rankingError) throw rankingError;
+        if (clientesBatch && clientesBatch.length > 0) {
+          allClientesData = [...allClientesData, ...clientesBatch];
+          from += pageSize;
+          hasMore = clientesBatch.length === pageSize;
+        } else {
+          hasMore = false;
+        }
+      }
 
-      // Buscar última vendedora por cliente
-      const { data: vendasData, error: vendasError } = await supabase
-        .from("gemini_vendas_geral")
-        .select("nome, vendedor, data")
-        .not("nome", "in", '("Cliente Import","Consumidor final")')
-        .not("nome", "is", null)
-        .order("data", { ascending: false });
+      // Buscar TODOS os dados de vendas em lotes
+      let allRankingData: any[] = [];
+      from = 0;
+      hasMore = true;
 
-      if (vendasError) throw vendasError;
+      while (hasMore) {
+        const { data: rankingBatch, error: rankingError } = await supabase
+          .from("gemini_vw_ranking_clientes")
+          .select("*")
+          .range(from, from + pageSize - 1);
+
+        if (rankingError) throw rankingError;
+
+        if (rankingBatch && rankingBatch.length > 0) {
+          allRankingData = [...allRankingData, ...rankingBatch];
+          from += pageSize;
+          hasMore = rankingBatch.length === pageSize;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      // Buscar TODAS as vendas para determinar última vendedora
+      let allVendasData: any[] = [];
+      from = 0;
+      hasMore = true;
+
+      while (hasMore) {
+        const { data: vendasBatch, error: vendasError } = await supabase
+          .from("gemini_vendas_geral")
+          .select("nome, vendedor, data")
+          .not("nome", "in", '("Cliente Import","Consumidor final")')
+          .not("nome", "is", null)
+          .order("data", { ascending: false })
+          .range(from, from + pageSize - 1);
+
+        if (vendasError) throw vendasError;
+
+        if (vendasBatch && vendasBatch.length > 0) {
+          allVendasData = [...allVendasData, ...vendasBatch];
+          from += pageSize;
+          hasMore = vendasBatch.length === pageSize;
+        } else {
+          hasMore = false;
+        }
+      }
 
       // Mapear última vendedora por cliente
       const ultimaVendedoraPorCliente = new Map<string, string>();
-      vendasData?.forEach((venda) => {
+      allVendasData.forEach((venda) => {
         const nomeCliente = venda.nome?.toLowerCase();
         if (nomeCliente && !ultimaVendedoraPorCliente.has(nomeCliente)) {
           ultimaVendedoraPorCliente.set(nomeCliente, venda.vendedor || "Sem vendedor");
@@ -103,8 +149,8 @@ export default function Clientes() {
       });
 
       // Combinar dados
-      const clientesComVendas = (clientesData || []).map((cliente) => {
-        const vendaInfo = rankingData?.find(
+      const clientesComVendas = allClientesData.map((cliente) => {
+        const vendaInfo = allRankingData.find(
           (r) => r.cliente_nome?.toLowerCase() === cliente.nome?.toLowerCase()
         );
         const nomeCliente = cliente.nome?.toLowerCase();
@@ -126,6 +172,8 @@ export default function Clientes() {
         comTelefone: clientesComVendas.filter((c) => c.telefone).length,
         totalGasto: clientesComVendas.reduce((sum, c) => sum + (c.total_gasto || 0), 0),
       });
+
+      console.log(`✅ Carregados ${clientesComVendas.length} clientes no total`);
     } catch (error) {
       console.error("Erro ao buscar clientes:", error);
       toast.error("Erro ao carregar clientes");
