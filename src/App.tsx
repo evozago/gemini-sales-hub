@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import Analytics from "./pages/Analytics";
 import SalesSniper from "./pages/SalesSniper";
 import Vendedoras from "./pages/Vendedoras";
+import Clientes from "./pages/Clientes";
 import NotFound from "./pages/NotFound";
 import { NavLink } from "./components/NavLink";
 
@@ -30,6 +31,7 @@ const App = () => (
                   <NavLink to="/">Dashboard</NavLink>
                   <NavLink to="/analytics">Analytics</NavLink>
                   <NavLink to="/vendedoras">Ranking Clientes</NavLink>
+                  <NavLink to="/clientes">Clientes</NavLink>
                   <NavLink to="/sniper">Sales Sniper</NavLink>
                 </nav>
               </div>
@@ -40,6 +42,7 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/vendedoras" element={<Vendedoras />} />
+              <Route path="/clientes" element={<Clientes />} />
               <Route path="/sniper" element={<SalesSniper />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
