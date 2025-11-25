@@ -27,6 +27,7 @@ interface Cliente {
   total_gasto?: number;
   frequencia_compras?: number;
   ultima_compra?: string;
+  ultima_vendedora?: string;
 }
 
 interface EditingCliente extends Cliente {
@@ -46,6 +47,7 @@ export default function Clientes() {
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [filterUF, setFilterUF] = useState<string>("all");
   const [filterCidade, setFilterCidade] = useState<string>("all");
+  const [filterVendedora, setFilterVendedora] = useState<string>("all");
 
   // Estados para estatísticas
   const [stats, setStats] = useState({
@@ -61,7 +63,7 @@ export default function Clientes() {
 
   useEffect(() => {
     filterAndSortClientes();
-  }, [clientes, searchTerm, sortField, sortDirection, filterUF, filterCidade]);
+  }, [clientes, searchTerm, sortField, sortDirection, filterUF, filterCidade, filterVendedora]);
 
   const fetchClientes = async () => {
     setLoading(true);
@@ -81,16 +83,37 @@ export default function Clientes() {
 
       if (rankingError) throw rankingError;
 
+      // Buscar última vendedora por cliente
+      const { data: vendasData, error: vendasError } = await supabase
+        .from("gemini_vendas_geral")
+        .select("nome, vendedor, data")
+        .not("nome", "in", '("Cliente Import","Consumidor final")')
+        .not("nome", "is", null)
+        .order("data", { ascending: false });
+
+      if (vendasError) throw vendasError;
+
+      // Mapear última vendedora por cliente
+      const ultimaVendedoraPorCliente = new Map<string, string>();
+      vendasData?.forEach((venda) => {
+        const nomeCliente = venda.nome?.toLowerCase();
+        if (nomeCliente && !ultimaVendedoraPorCliente.has(nomeCliente)) {
+          ultimaVendedoraPorCliente.set(nomeCliente, venda.vendedor || "Sem vendedor");
+        }
+      });
+
       // Combinar dados
       const clientesComVendas = (clientesData || []).map((cliente) => {
         const vendaInfo = rankingData?.find(
           (r) => r.cliente_nome?.toLowerCase() === cliente.nome?.toLowerCase()
         );
+        const nomeCliente = cliente.nome?.toLowerCase();
         return {
           ...cliente,
           total_gasto: vendaInfo?.total_gasto_real || 0,
           frequencia_compras: vendaInfo?.frequencia_compras || 0,
           ultima_compra: vendaInfo?.ultima_compra || null,
+          ultima_vendedora: ultimaVendedoraPorCliente.get(nomeCliente) || "Sem vendedor",
         };
       });
 
@@ -134,6 +157,11 @@ export default function Clientes() {
     // Filtro por Cidade
     if (filterCidade !== "all") {
       filtered = filtered.filter((cliente) => cliente.cidade === filterCidade);
+    }
+
+    // Filtro por Vendedora
+    if (filterVendedora !== "all") {
+      filtered = filtered.filter((cliente) => cliente.ultima_vendedora === filterVendedora);
     }
 
     // Ordenação
@@ -220,7 +248,7 @@ export default function Clientes() {
     window.open(`https://wa.me/55${cleanPhone}?text=${message}`, "_blank");
   };
 
-  // Get unique UFs and Cidades for filters
+  // Get unique UFs, Cidades and Vendedoras for filters
   const uniqueUFs = Array.from(new Set(clientes.map((c) => c.uf).filter(Boolean))).sort();
   const uniqueCidades = Array.from(
     new Set(
@@ -229,6 +257,9 @@ export default function Clientes() {
         .map((c) => c.cidade)
         .filter(Boolean)
     )
+  ).sort();
+  const uniqueVendedoras = Array.from(
+    new Set(clientes.map((c) => c.ultima_vendedora).filter(Boolean))
   ).sort();
 
   // Paginação
@@ -300,7 +331,7 @@ export default function Clientes() {
       {/* Filtros e Busca */}
       <Card>
         <CardContent className="pt-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div className="md:col-span-2">
               <div className="relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -311,6 +342,22 @@ export default function Clientes() {
                   className="pl-9"
                 />
               </div>
+            </div>
+
+            <div>
+              <Select value={filterVendedora} onValueChange={setFilterVendedora}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Vendedora" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as Vendedoras</SelectItem>
+                  {uniqueVendedoras.map((vendedora) => (
+                    <SelectItem key={vendedora} value={vendedora!}>
+                      {vendedora}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div>
@@ -386,6 +433,12 @@ export default function Clientes() {
                       <ArrowUpDown className="h-4 w-4" />
                     </div>
                   </TableHead>
+                  <TableHead className="cursor-pointer" onClick={() => handleSort("ultima_vendedora")}>
+                    <div className="flex items-center gap-2">
+                      Vendedora
+                      <ArrowUpDown className="h-4 w-4" />
+                    </div>
+                  </TableHead>
                   <TableHead>Contato</TableHead>
                   <TableHead className="cursor-pointer" onClick={() => handleSort("cidade")}>
                     <div className="flex items-center gap-2">
@@ -424,6 +477,9 @@ export default function Clientes() {
                           <div className="text-sm text-muted-foreground">CPF: {cliente.cpf}</div>
                         )}
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{cliente.ultima_vendedora}</Badge>
                     </TableCell>
                     <TableCell>
                       <div className="space-y-1">
