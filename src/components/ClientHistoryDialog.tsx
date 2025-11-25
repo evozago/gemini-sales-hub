@@ -35,19 +35,36 @@ export function ClientHistoryDialog({ open, onOpenChange, clientName }: ClientHi
   const fetchHistory = async () => {
     setLoading(true);
     try {
-      // Buscar vendas do cliente
-      const { data: vendas, error: vendasError } = await supabase
-        .from('gemini_vendas_geral')
-        .select('*')
-        .eq('nome', clientName)
-        .order('data', { ascending: false });
+      let allVendas: any[] = [];
+      let from = 0;
+      const pageSize = 1000;
+      
+      // Buscar todas as vendas do cliente em lotes
+      while (true) {
+        const { data: vendas, error: vendasError } = await supabase
+          .from('gemini_vendas_geral')
+          .select('*')
+          .eq('nome', clientName)
+          .order('data', { ascending: false })
+          .range(from, from + pageSize - 1);
 
-      if (vendasError) throw vendasError;
+        if (vendasError) throw vendasError;
+        
+        if (!vendas || vendas.length === 0) break;
+        
+        allVendas = [...allVendas, ...vendas];
+        
+        if (vendas.length < pageSize) break;
+        
+        from += pageSize;
+      }
 
-      if (vendas) {
+      console.log(`Encontradas ${allVendas.length} vendas para ${clientName}`);
+
+      if (allVendas.length > 0) {
         // Para cada venda, buscar quantidade de itens
         const historyWithItems = await Promise.all(
-          vendas.map(async (venda) => {
+          allVendas.map(async (venda) => {
             const { data: itens, error: itensError } = await supabase
               .from('gemini_vendas_itens')
               .select('quantidade')
@@ -72,6 +89,8 @@ export function ClientHistoryDialog({ open, onOpenChange, clientName }: ClientHi
         );
 
         setHistory(historyWithItems);
+      } else {
+        setHistory([]);
       }
     } catch (error) {
       console.error('Erro ao buscar histórico:', error);

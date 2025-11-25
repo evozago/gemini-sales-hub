@@ -1776,6 +1776,7 @@ export type Database = {
           codigo_barras: string | null
           colecao: string | null
           cor: string | null
+          departamento: string | null
           genero: string | null
           linha: string | null
           marca: string | null
@@ -1793,6 +1794,7 @@ export type Database = {
           codigo_barras?: string | null
           colecao?: string | null
           cor?: string | null
+          departamento?: string | null
           genero?: string | null
           linha?: string | null
           marca?: string | null
@@ -1810,6 +1812,7 @@ export type Database = {
           codigo_barras?: string | null
           colecao?: string | null
           cor?: string | null
+          departamento?: string | null
           genero?: string | null
           linha?: string | null
           marca?: string | null
