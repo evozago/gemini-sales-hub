@@ -1,3 +1,6 @@
+// src/types.ts
+
+// Tabelas Base do Banco de Dados
 export interface Cliente {
   id: number;
   nome: string;
@@ -21,6 +24,9 @@ export interface Produto {
   data_criacao?: string;
 }
 
+// --- VIEWS DE INTELIGÊNCIA ---
+
+// Para o Gráfico de Pizza/Barras (Dashboard)
 export interface AnalyticsCategoria {
   categoria_produto: string;
   qtd_pedidos: number;
@@ -30,6 +36,7 @@ export interface AnalyticsCategoria {
   preco_medio_peca: number;
 }
 
+// Para o Gráfico de Evolução (Dashboard)
 export interface SalesEvolutionData {
   mes_ano: string;
   total_atendimentos: number;
@@ -37,6 +44,7 @@ export interface SalesEvolutionData {
   tipo_operacao: string;
 }
 
+// Para a Tabela de Ranking de Clientes
 export interface CarteiraCliente {
   cliente: string;
   vendedor_responsavel: string;
@@ -48,6 +56,7 @@ export interface CarteiraCliente {
   ultimas_preferencias: string;
 }
 
+// Para o Resultado da Busca do Sniper
 export interface SalesSniperMatch {
   cliente: {
     nome: string;
@@ -58,43 +67,7 @@ export interface SalesSniperMatch {
   totalGastoHistorico: number;
 }
 
-// --- NOVO: ANÁLISE DE GIRO DE ESTOQUE ---
-export interface InventoryAnalytics {
-  marca: string;
-  genero: string;
-  departamento: string;
-  total_skus: number;
-  qtd_estoque_atual: number;
-  valor_estoque_custo: number;
-  valor_estoque_venda: number;
-  qtd_chegou_90d: number;
-  vendas_qtd_30d: number;
-  vendas_qtd_90d: number;
-  vendas_valor_90d: number;
-  sugestao?: 'COMPRAR' | 'LIQUIDAR' | 'MANTER';
-  cobertura_dias?: number;
-}
-// Em src/types.ts -> InventoryAnalytics
-
-export interface InventoryAnalytics {
-  marca: string;
-  genero: string;
-  departamento: string;
-  categoria_produto: string; // <--- ADICIONE ISTO
-  total_skus: number;
-  qtd_estoque_atual: number;
-  valor_estoque_custo: number;
-  valor_estoque_venda: number;
-  qtd_chegou_90d: number;
-  vendas_qtd_30d: number;
-  vendas_qtd_90d: number;
-  vendas_valor_90d: number;
-  sugestao?: 'COMPRAR' | 'LIQUIDAR' | 'MANTER';
-  cobertura_dias?: number;
-}
-// src/types.ts
-
-// View: gemini_vw_estoque_geral (Produto a Produto)
+// --- NOVO: ANÁLISE DE ESTOQUE DETALHADA (SKU a SKU) ---
 export interface InventoryItem {
   sku: string;
   nome_produto: string;
@@ -105,17 +78,17 @@ export interface InventoryItem {
   tamanho: string;
   cor: string;
   
-  // Estoque
+  // Dados de Estoque (Vindos da View)
   estoque_atual: number;
-  total_valor_estoque: number; // Valor total em estoque (preço de venda)
+  total_valor_estoque: number; // Quantidade * Preço Venda
   
-  // Vendas
+  // Dados de Vendas (Histórico e Recente)
   vendas_total_hist: number;
   vendas_30d: number;
   vendas_90d: number;
   faturamento_90d: number;
   
-  // Calculados no Front
+  // Campos Calculados no Frontend (Inteligência)
   sugestao?: 'COMPRAR' | 'LIQUIDAR' | 'MANTER';
   cobertura_dias?: number;
 }
