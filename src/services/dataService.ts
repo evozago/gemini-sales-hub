@@ -84,3 +84,52 @@ export const getInventoryAnalytics = async (): Promise<InventoryAnalytics[]> => 
     });
   } catch (e) { console.error("Erro Analytics:", e); return []; }
 };
+// src/services/dataService.ts
+
+// --- 4. ANÁLISE DE ESTOQUE DETALHADA ---
+export const getInventoryItems = async (): Promise<InventoryItem[]> => {
+  try {
+    // Busca a view nova (SKU a SKU)
+    const { data, error } = await supabase
+      .from('gemini_vw_estoque_geral')
+      .select('*')
+      .order('vendas_90d', { ascending: false }) // Mais vendidos primeiro
+      .limit(2000); // Limite de segurança para performance (ajustável)
+
+    if (error) {
+      console.error("Erro Estoque Geral:", error);
+      return [];
+    }
+
+    // Processamento de Inteligência (Sugestão)
+    return (data || []).map((item: any) => {
+      const estoque = item.estoque_atual || 0;
+      const vendas90d = item.vendas_90d || 0;
+      
+      // Cobertura: Se vender X por dia, dura quanto tempo?
+      const vendasPorDia = vendas90d / 90;
+      const diasDeCobertura = vendasPorDia > 0 ? Math.round(estoque / vendasPorDia) : 999;
+
+      let sugestao: 'COMPRAR' | 'LIQUIDAR' | 'MANTER' = 'MANTER';
+
+      // Regras:
+      if (estoque > 5 && diasDeCobertura > 180) { 
+        // Tem mais de 5 peças (para um único produto é muito) e não sai há 6 meses
+        sugestao = 'LIQUIDAR';
+      } else if (estoque <= 2 && vendas90d >= 5) {
+        // Tem pouco (<=2) e vendeu bem (>=5)
+        sugestao = 'COMPRAR';
+      }
+
+      return {
+        ...item,
+        sugestao,
+        cobertura_dias: diasDeCobertura
+      };
+    });
+
+  } catch (e) {
+    console.error("Erro Service Estoque:", e);
+    return [];
+  }
+};
