@@ -25,10 +25,7 @@ const App = () => (
           <header className="border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
             <div className="container mx-auto px-6 py-4">
               <div className="flex items-center justify-between">
-                <Link
-                  to="/"
-                  className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent"
-                >
+                <Link to="/" className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
                   GeminiCRM
                 </Link>
                 <nav className="flex gap-6">
