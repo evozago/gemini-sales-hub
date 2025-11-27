@@ -1776,6 +1776,7 @@ export type Database = {
           codigo_barras: string | null
           colecao: string | null
           cor: string | null
+          data_criacao: string | null
           departamento: string | null
           genero: string | null
           linha: string | null
@@ -1794,6 +1795,7 @@ export type Database = {
           codigo_barras?: string | null
           colecao?: string | null
           cor?: string | null
+          data_criacao?: string | null
           departamento?: string | null
           genero?: string | null
           linha?: string | null
@@ -1812,6 +1814,7 @@ export type Database = {
           codigo_barras?: string | null
           colecao?: string | null
           cor?: string | null
+          data_criacao?: string | null
           departamento?: string | null
           genero?: string | null
           linha?: string | null
@@ -4679,6 +4682,22 @@ export type Database = {
           updated_at: string | null
           valor_transporte_dia: number | null
           valor_transporte_total: number | null
+        }
+        Relationships: []
+      }
+      gemini_vw_analise_giro: {
+        Row: {
+          departamento: string | null
+          genero: string | null
+          marca: string | null
+          qtd_chegou_90d: number | null
+          qtd_estoque_atual: number | null
+          total_skus: number | null
+          valor_estoque_custo: number | null
+          valor_estoque_venda: number | null
+          vendas_qtd_30d: number | null
+          vendas_qtd_90d: number | null
+          vendas_valor_90d: number | null
         }
         Relationships: []
       }
