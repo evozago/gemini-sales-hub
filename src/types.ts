@@ -1,6 +1,3 @@
-// src/types.ts
-
-// Tipos das Tabelas Principais
 export interface Cliente {
   id: number;
   nome: string;
@@ -14,15 +11,16 @@ export interface Produto {
   sku: string;
   nome_produto: string;
   categoria_produto: string;
+  departamento: string;
   marca: string;
   tamanho: string;
   cor: string;
   genero: string;
   valor_venda: number;
   quantidade_estoque: number;
+  data_criacao?: string;
 }
 
-// Tipos das Views de Inteligência (Analíticos)
 export interface AnalyticsCategoria {
   categoria_produto: string;
   qtd_pedidos: number;
@@ -50,7 +48,6 @@ export interface CarteiraCliente {
   ultimas_preferencias: string;
 }
 
-// Tipo para o Sniper de Vendas
 export interface SalesSniperMatch {
   cliente: {
     nome: string;
@@ -59,4 +56,21 @@ export interface SalesSniperMatch {
   motivo: string;
   ultimaCompraData: string;
   totalGastoHistorico: number;
+}
+
+// --- NOVO: ANÁLISE DE GIRO DE ESTOQUE ---
+export interface InventoryAnalytics {
+  marca: string;
+  genero: string;
+  departamento: string;
+  total_skus: number;
+  qtd_estoque_atual: number;
+  valor_estoque_custo: number;
+  valor_estoque_venda: number;
+  qtd_chegou_90d: number;
+  vendas_qtd_30d: number;
+  vendas_qtd_90d: number;
+  vendas_valor_90d: number;
+  sugestao?: 'COMPRAR' | 'LIQUIDAR' | 'MANTER';
+  cobertura_dias?: number;
 }
