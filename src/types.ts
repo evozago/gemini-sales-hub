@@ -74,3 +74,21 @@ export interface InventoryAnalytics {
   sugestao?: 'COMPRAR' | 'LIQUIDAR' | 'MANTER';
   cobertura_dias?: number;
 }
+// Em src/types.ts -> InventoryAnalytics
+
+export interface InventoryAnalytics {
+  marca: string;
+  genero: string;
+  departamento: string;
+  categoria_produto: string; // <--- ADICIONE ISTO
+  total_skus: number;
+  qtd_estoque_atual: number;
+  valor_estoque_custo: number;
+  valor_estoque_venda: number;
+  qtd_chegou_90d: number;
+  vendas_qtd_30d: number;
+  vendas_qtd_90d: number;
+  vendas_valor_90d: number;
+  sugestao?: 'COMPRAR' | 'LIQUIDAR' | 'MANTER';
+  cobertura_dias?: number;
+}
