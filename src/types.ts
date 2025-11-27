@@ -92,3 +92,30 @@ export interface InventoryAnalytics {
   sugestao?: 'COMPRAR' | 'LIQUIDAR' | 'MANTER';
   cobertura_dias?: number;
 }
+// src/types.ts
+
+// View: gemini_vw_estoque_geral (Produto a Produto)
+export interface InventoryItem {
+  sku: string;
+  nome_produto: string;
+  marca: string;
+  genero: string;
+  departamento: string;
+  categoria_produto: string;
+  tamanho: string;
+  cor: string;
+  
+  // Estoque
+  estoque_atual: number;
+  total_valor_estoque: number; // Valor total em estoque (preço de venda)
+  
+  // Vendas
+  vendas_total_hist: number;
+  vendas_30d: number;
+  vendas_90d: number;
+  faturamento_90d: number;
+  
+  // Calculados no Front
+  sugestao?: 'COMPRAR' | 'LIQUIDAR' | 'MANTER';
+  cobertura_dias?: number;
+}
